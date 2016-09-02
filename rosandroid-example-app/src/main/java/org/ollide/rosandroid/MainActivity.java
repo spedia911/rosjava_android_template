@@ -16,6 +16,7 @@
 
 package org.ollide.rosandroid;
 
+import android.hardware.SensorManager;
 import android.os.Bundle;
 
 import org.ros.address.InetAddressFactory;
@@ -26,6 +27,10 @@ import org.ros.node.NodeMainExecutor;
 
 public class MainActivity extends RosActivity {
 
+    private SensorManager mSensorManager;
+    private SimplePublisherNode simplePublisherNode;
+    private MagneticFieldPublisher magnetic_field_pub;
+
     public MainActivity() {
         super("RosAndroidExample", "RosAndroidExample");
     }
@@ -34,15 +39,33 @@ public class MainActivity extends RosActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mSensorManager = (SensorManager)this.getSystemService(SENSOR_SERVICE);
     }
 
     @Override
     protected void init(NodeMainExecutor nodeMainExecutor) {
-        NodeMain node = new SimplePublisherNode();
+        int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 
+        int sensorDelay = 20000; // 20,000 us == 50 Hz for Android 3.1 and above
+        if(currentapiVersion <= android.os.Build.VERSION_CODES.HONEYCOMB){
+            sensorDelay = SensorManager.SENSOR_DELAY_UI; // 16.7Hz for older devices.  They only support enum values, not the microsecond version.
+        }
+
+/*
         NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
         nodeConfiguration.setMasterUri(getMasterUri());
+        nodeConfiguration.setNodeName("android_sensors_driver_mag");
+        this.simplePublisherNode = new SimplePublisherNode();
+        nodeMainExecutor.execute(this.simplePublisherNode, nodeConfiguration);
+*/
 
-        nodeMainExecutor.execute(node, nodeConfiguration);
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration1 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration1.setMasterUri(getMasterUri());
+            nodeConfiguration1.setNodeName("android_sensors_driver_magnetic_field");
+            this.magnetic_field_pub = new MagneticFieldPublisher(mSensorManager, sensorDelay);
+            nodeMainExecutor.execute(this.magnetic_field_pub, nodeConfiguration1);
+        }
     }
 }
